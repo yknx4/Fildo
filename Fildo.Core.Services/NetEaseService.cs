@@ -22,12 +22,11 @@
     {
         private const string Domain = "http://music.163.com";
         private List<AutocompleteSearch> autocompleteSearches;
-        private bool searching;
+        
         public List<string> AvailableProxy { get; private set; } = new List<string>();
 
         public NetEaseService()
         {
-            this.searching = false;
             //foreach (string ip in new string[] { "16", "43" })
             //    AvailableProxy.Add("http://14.215.9." + ip);
 
@@ -45,26 +44,19 @@
             try
             {
                 string url = Domain + "/api/album/" + albumId + "?ext=true&private_cloud=true&id=" + albumId + "&offset=0&total=true&limit=100";
-                if (!this.searching)
+                List<SongNetease> songs = new List<SongNetease>();
+                using (HttpClient client = new HttpClient())
                 {
-                    List<SongNetease> songs = new List<SongNetease>();
-                    using (HttpClient client = new HttpClient())
-                    {
-                        client.DefaultRequestHeaders.Referrer = new Uri("http://music.163.com");
-                        client.DefaultRequestHeaders.Host = "music.163.com";
+                    client.DefaultRequestHeaders.Referrer = new Uri("http://music.163.com");
+                    client.DefaultRequestHeaders.Host = "music.163.com";
 
-                        string content = await client.GetStringAsync(url);
-                        var data = JToken.Parse(content);
-                        var songsJson = data["songs"];
-                        this.GetValue(songsJson, null, songs);
-                    }
+                    string content = await client.GetStringAsync(url);
+                    var data = JToken.Parse(content);
+                    var songsJson = data["songs"];
+                    this.GetValue(songsJson, null, songs);
+                }
 
-                    return songs;
-                }
-                else
-                {
-                    return null;
-                }
+                return songs;
             }
             catch (Exception)
             {
@@ -76,36 +68,29 @@
         {
             try
             {
-                if (!this.searching)
-                {
-                    string url = Domain + "/api/artist/albums/" + artistId + "?id=" + artistId + "&offset=0&total=true&limit=100";
+                string url = Domain + "/api/artist/albums/" + artistId + "?id=" + artistId + "&offset=0&total=true&limit=100";
 
-                    List<Album> albums = new List<Album>();
-                    using (HttpClient client = new HttpClient())
+                List<Album> albums = new List<Album>();
+                using (HttpClient client = new HttpClient())
+                {
+                    client.DefaultRequestHeaders.Referrer = new Uri("http://music.163.com");
+                    client.DefaultRequestHeaders.Host = "music.163.com";
+
+                    string content = await client.GetStringAsync(url);
+                    var data = JToken.Parse(content);
+                    var albumsJson = data["hotAlbums"];
+                    foreach (var albumJson in albumsJson)
                     {
-                        client.DefaultRequestHeaders.Referrer = new Uri("http://music.163.com");
-                        client.DefaultRequestHeaders.Host = "music.163.com";
-
-                        string content = await client.GetStringAsync(url);
-                        var data = JToken.Parse(content);
-                        var albumsJson = data["hotAlbums"];
-                        foreach (var albumJson in albumsJson)
-                        {
-                            Album album = new Album();
-                            album.AlbumId = albumJson["id"].ToString();
-                            album.ImageUrl = albumJson["picUrl"].ToString();
-                            album.Artist = artistName;
-                            album.Name = albumJson["name"].ToString();
-                            albums.Add(album);
-                        }
+                        Album album = new Album();
+                        album.AlbumId = albumJson["id"].ToString();
+                        album.ImageUrl = albumJson["picUrl"].ToString();
+                        album.Artist = artistName;
+                        album.Name = albumJson["name"].ToString();
+                        albums.Add(album);
                     }
+                }
 
-                    return albums;
-                }
-                else
-                {
-                    return null;
-                }
+                return albums;
             }
             catch (Exception)
             {
@@ -117,28 +102,21 @@
         {
             try
             {
-                if (!this.searching)
+                string url = Domain + "/api/artist/" + id + "?ext=true&private_cloud=true&top=100&id=" + id;
+
+                List<SongNetease> hotSongs = new List<SongNetease>();
+                using (HttpClient client = new HttpClient())
                 {
-                    string url = Domain + "/api/artist/" + id + "?ext=true&private_cloud=true&top=100&id=" + id;
+                    client.DefaultRequestHeaders.Referrer = new Uri("http://music.163.com");
+                    client.DefaultRequestHeaders.Host = "music.163.com";
 
-                    List<SongNetease> hotSongs = new List<SongNetease>();
-                    using (HttpClient client = new HttpClient())
-                    {
-                        client.DefaultRequestHeaders.Referrer = new Uri("http://music.163.com");
-                        client.DefaultRequestHeaders.Host = "music.163.com";
-
-                        string content = await client.GetStringAsync(url);
-                        var data = JToken.Parse(content);
-                        var songs = data["hotSongs"];
-                        this.GetValue(songs, data, hotSongs);
-                    }
-
-                    return hotSongs;
+                    string content = await client.GetStringAsync(url);
+                    var data = JToken.Parse(content);
+                    var songs = data["hotSongs"];
+                    this.GetValue(songs, data, hotSongs);
                 }
-                else
-                {
-                    return null;
-                }
+
+                return hotSongs;
             }
             catch (Exception)
             {
@@ -204,7 +182,6 @@
             try
             {
                 this.autocompleteSearches = new List<AutocompleteSearch>();
-                this.searching = true;
                 string url = Domain + "/api/search/suggest/web";
                 string Parameters = Uri.EscapeUriString("s=" + search + "&limit=10");
 
@@ -232,8 +209,7 @@
                     this.CompleteResults(jtoken, "Album");
                     jtoken = data["result"]["songs"];
                     this.CompleteResults(jtoken, "Song");
-
-                    this.searching = false;    
+ 
                 }
                 
                 return this.autocompleteSearches;
@@ -290,7 +266,7 @@
             try
             {
                 var result = new List<AutocompleteSearch>();
-                this.searching = true;
+
                 string url = "http://www.xiami.com/search/json?t=4&k=" + toSearch + "&n=10";
 
                 using(HttpClient client = new HttpClient())
@@ -433,6 +409,7 @@
                 using (HttpClient client = new HttpClient())
                 {
                     string vkContent = await client.GetStringAsync(url);
+                    //vkContent = "asdasdasd({\"error\":{\"error_code\":14,\"error_msg\":\"Captcha needed\",\"request_params\":[{\"key\":\"oauth\",\"value\":\"1\"},{\"key\":\"method\",\"value\":\"captcha.force\"},{\"key\":\"uids\",\"value\":\"66748\"},{\"key\":\"access_token\",\"value\":\"b9b5151856dcc745d785a6b604295d30888a827a37763198888d8b7f5271a4d8a049fefbaeed791b2882\"}],\"captcha_sid\":\"239633676097\",\"captcha_img\":\"http://api.vk.com/captcha.php?sid=239633676097&s=1\"}});";
                     vkContent = vkContent.Split(new string[] { "(" }, 2, StringSplitOptions.None)[1];
                     vkContent = vkContent.Replace("});", "}");
                     if (vkContent.StartsWith("{\"err"))
@@ -481,95 +458,88 @@
             {
                 string url = Domain + "/api/song/detail?ids=[" + songId + "]";
 
-                if (!this.searching)
+                SongNetease song = new SongNetease();
+                using (HttpClient client = new HttpClient())
                 {
-                    SongNetease song = new SongNetease();
-                    using (HttpClient client = new HttpClient())
+                    client.DefaultRequestHeaders.Referrer = new Uri("http://music.163.com");
+                    client.DefaultRequestHeaders.Host = "music.163.com";
+
+                    string content = await client.GetStringAsync(url);
+                    var data = JToken.Parse(content);
+                    var songsJson = data["songs"];
+                    var asdfasdf = JsonConvert.DeserializeObject<IEnumerable<SongDto>>(songsJson.ToString()).ToList();
+                    var artist = data;
+
+                    string extension = ".mp3";
+
+                    foreach (var songJson in songsJson)
                     {
-                        client.DefaultRequestHeaders.Referrer = new Uri("http://music.163.com");
-                        client.DefaultRequestHeaders.Host = "music.163.com";
+                        var artistJson = songJson["artists"].FirstOrDefault();
 
-                        string content = await client.GetStringAsync(url);
-                        var data = JToken.Parse(content);
-                        var songsJson = data["songs"];
-                        var asdfasdf = JsonConvert.DeserializeObject<IEnumerable<SongDto>>(songsJson.ToString()).ToList();
-                        var artist = data;
-
-                        string extension = ".mp3";
-
-                        foreach (var songJson in songsJson)
+                        // TODO Improve this fucking shit.
+                        try
                         {
-                            var artistJson = songJson["artists"].FirstOrDefault();
-
-                            // TODO Improve this fucking shit.
+                            song.Title = songJson["hMusic"]["name"].ToString();
+                            song.Id = songJson["hMusic"]["dfsId"].ToString();
+                        }
+                        catch (Exception)
+                        {
                             try
                             {
-                                song.Title = songJson["hMusic"]["name"].ToString();
-                                song.Id = songJson["hMusic"]["dfsId"].ToString();
+                                song.Title = songJson["mMusic"]["name"].ToString();
+                                song.Id = songJson["mMusic"]["dfsId"].ToString();
                             }
                             catch (Exception)
                             {
                                 try
                                 {
-                                    song.Title = songJson["mMusic"]["name"].ToString();
-                                    song.Id = songJson["mMusic"]["dfsId"].ToString();
+                                    song.Title = songJson["lMusic"]["name"].ToString();
+                                    song.Id = songJson["lMusic"]["dfsId"].ToString();
                                 }
                                 catch (Exception)
                                 {
                                     try
                                     {
-                                        song.Title = songJson["lMusic"]["name"].ToString();
-                                        song.Id = songJson["lMusic"]["dfsId"].ToString();
+                                        song.Title = songJson["bMusic"]["name"].ToString();
+                                        song.Id = songJson["bMusic"]["dfsId"].ToString();
                                     }
                                     catch (Exception)
                                     {
                                         try
                                         {
-                                            song.Title = songJson["bMusic"]["name"].ToString();
-                                            song.Id = songJson["bMusic"]["dfsId"].ToString();
+                                            song.Title = songJson["audition"]["name"].ToString();
+                                            song.Id = songJson["audition"]["dfsId"].ToString();
+                                            extension = ".m4a";
                                         }
                                         catch (Exception)
                                         {
-                                            try
-                                            {
-                                                song.Title = songJson["audition"]["name"].ToString();
-                                                song.Id = songJson["audition"]["dfsId"].ToString();
-                                                extension = ".m4a";
-                                            }
-                                            catch (Exception)
-                                            {
 
 
-                                            }
                                         }
                                     }
                                 }
                             }
-
-                            song.Artist = artistJson["name"].ToString();
-                            var dur = songJson["duration"].ToString();
-                            int duration;
-                            if (int.TryParse(dur, out duration))
-                            {
-                                song.Duration = duration;
-                            }
-                            else
-                            {
-                                song.Duration = 0;
-                            }
-                            
-                            song.Url = "http://p3.music.126.net/" + this.Decrypt(song.Id) + "/" +
-                                        song.Id + extension;
-                            break;
                         }
-                    }
 
-                    return song;
+                        song.Artist = artistJson["name"].ToString();
+                        var dur = songJson["duration"].ToString();
+                        int duration;
+                        if (int.TryParse(dur, out duration))
+                        {
+                            song.Duration = duration;
+                        }
+                        else
+                        {
+                            song.Duration = 0;
+                        }
+                            
+                        song.Url = "http://p3.music.126.net/" + this.Decrypt(song.Id) + "/" +
+                                    song.Id + extension;
+                        break;
+                    }
                 }
-                else
-                {
-                    return null;
-                }
+
+                return song;
             }
             catch (Exception)
             {

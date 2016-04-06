@@ -23,7 +23,7 @@
         private List<MenuItem> menuItems;
         private string toSearch;
         private const int major = 1;
-        private const int medium = 1;
+        private const int medium = 2;
         private const int minor = 2;
         private bool isBusy;
         private bool newVersion;
