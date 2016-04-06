@@ -291,7 +291,7 @@
             {
                 var result = new List<AutocompleteSearch>();
                 this.searching = true;
-                string url = "http://www.xiami.com/search/json?t=4&k=amaral&n=3";
+                string url = "http://www.xiami.com/search/json?t=4&k=" + toSearch + "&n=10";
 
                 using(HttpClient client = new HttpClient())
                 {
